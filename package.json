@@ -11,6 +11,8 @@
   "description": "",
   "dependencies": {
     "dotenv": "^16.5.0",
+    "expree": "^2.1.0",
+    "express": "^4.21.2",
     "firebase": "^11.7.3",
     "firebase-admin": "^13.4.0",
     "telegraf": "^4.16.3"
