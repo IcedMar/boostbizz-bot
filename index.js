@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { Telegraf, Markup } = require('telegraf');
-const session = require('telegraf/session');
+const { session } = require('telegraf');
 const db = require('./firebase');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
