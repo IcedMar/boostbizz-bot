@@ -6,9 +6,6 @@ const db = require('./firebase');
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const app = express();
 
-// Middleware for session handling
-bot.use(session());
-
 // Webhook path and domain
 const PORT = process.env.PORT || 3000;
 const WEBHOOK_PATH = `/bot${process.env.BOT_TOKEN}`;
@@ -17,6 +14,9 @@ const WEBHOOK_URL = `${process.env.WEBHOOK_DOMAIN}${WEBHOOK_PATH}`;
 // Express middleware for webhook
 app.use(express.json());
 app.use(bot.webhookCallback(WEBHOOK_PATH));
+
+// Middleware for session handling
+bot.use(session());
 
 // Set webhook
 bot.telegram.setWebhook(WEBHOOK_URL);
@@ -139,7 +139,7 @@ bot.action(['subscribe_starter', 'subscribe_standard', 'subscribe_premium'], asy
     `You chose ${tier.charAt(0).toUpperCase() + tier.slice(1)} (KES ${price}). Select payment method:`,
     Markup.inlineKeyboard([
       [Markup.button.callback('💳 Telegram Pay', `pay_telegram_${tier}`)],
-      [Markup.button.webApp('📱 M-Pesa', `https://your-mpesa-miniapp.com/pay?userId=${userId}&plan=${tier}&price=${price}`)],
+      [Markup.button.webApp('📱 M-Pesa', `https://t.me/BoostBizz_bot/mpesaPay?userId=${userId}&plan=${tier}&price=${price}`)],
     ])
   );
 });
