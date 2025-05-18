@@ -1,14 +1,14 @@
 // index.js
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
+const { Markup } = require('telegraf'); 
 const db = require('./firebase');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Start command
-bot.start((ctx) => {
-    const userId = ctx.from.id.toString();
-    const user = {
+bot.start(async (ctx) => {
+  const userId = ctx.from.id.toString();
+  const user = {
     userId,
     username: ctx.from.username || '',
     firstName: ctx.from.first_name || '',
@@ -17,19 +17,25 @@ bot.start((ctx) => {
     subscription: 'none',
   };
 
-  await db.collection('users').doc(userId).set(user, { merge: true });
+  try {
+    await db.collection('users').doc(userId).set(user, { merge: true });
 
-  ctx.reply(
-    'Welcome to BoostBizz Kenya! 🚀\nLet’s register your business.',
-    {
-      reply_markup: {
-        keyboard: [['Register Business']],
-        resize_keyboard: true,
-        one_time_keyboard: true,
-      },
-    }
-  );
+    ctx.reply(
+      'Welcome to BoostBizz Kenya! 🚀\nLet’s register your business.',
+      {
+        reply_markup: {
+          keyboard: [['Register Business']],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      }
+    );
+  } catch (error) {
+    console.error('Error saving user to Firestore:', error);
+    ctx.reply('⚠️ An error occurred while registering. Please try again later.');
+  }
 });
+
 
 // Start Registration
 bot.hears('Register Business', (ctx) => {
@@ -63,10 +69,10 @@ function collectContact(ctx) {
 
   ctx.reply(
     `Please confirm your details:\n\n` +
-      `📏 Business Name: ${name}\n` +
-      `📦 Type: ${type}\n` +
-      `📍 Location: ${location}\n` +
-      `☎️ Contact: ${contact}`,
+    `📏 Business Name: ${name}\n` +
+    `📦 Type: ${type}\n` +
+    `📍 Location: ${location}\n` +
+    `☎️ Contact: ${contact}`,
     {
       reply_markup: {
         keyboard: [['✅ Confirm', '✏️ Edit']],
@@ -85,44 +91,81 @@ function collectContact(ctx) {
       createdAt: new Date()
     });
 
-    ctx.reply('Choose your subscription:', {
+    ctx.reply('Choose your subscription plan:', {
       reply_markup: {
-        keyboard: [['Free'], ['Premium (KES 500)']],
-        resize_keyboard: true
-      }
+        inline_keyboard: [
+          [{ text: 'Starter (KES 1500)', callback_data: 'subscribe_starter' }],
+          [{ text: 'Standard (KES 3000)', callback_data: 'subscribe_standard' }],
+          [{ text: 'Premium (KES 5500)', callback_data: 'subscribe_premium' }],
+        ],
+      },
     });
   });
 }
 
-bot.hears(['Free', 'Premium (KES 500)'], async (ctx) => {
+bot.action(['subscribe_starter', 'subscribe_standard', 'subscribe_premium'], async (ctx) => {
   const userId = ctx.from.id.toString();
-  const tier = ctx.message.text;
+  const tier = ctx.callbackQuery.data.split('_')[1]; // Extract 'starter', 'standard', or 'premium'
+  let price;
 
-  if (tier === 'Free') {
-    await db.collection('users').doc(userId).update({
-      isSubscribed: true,
-      subscriptionTier: 'Free'
-    });
-
-    return ctx.reply('✅ You are now registered under the Free plan. Proceed to the app:', {
-      reply_markup: {
-        inline_keyboard: [[
-          { text: '🚀 Open Dashboard', web_app: { url: `https://yourapp.com/dashboard?userId=${userId}` } }
-        ]]
-      }
-    });
+  switch (tier) {
+    case 'starter':
+      price = 1500;
+      break;
+    case 'standard':
+      price = 3000;
+      break;
+    case 'premium':
+      price = 5500;
+      break;
+    default:
+      return ctx.reply('⚠️ Invalid subscription tier selected.');
   }
 
-  if (tier === 'Premium (KES 500)') {
-    return ctx.reply('Choose a payment method:', {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '💳 Pay via Telegram', callback_data: 'pay_telegram' }],
-          [{ text: '📱 Pay via M-Pesa', web_app: { url: `https://your-mpesa-page.com/pay?userId=${userId}` } }]
-        ]
-      }
-    });
+  ctx.reply(`You have selected the ${tier.charAt(0).toUpperCase() + tier.slice(1)} plan (KES ${price}). How would you like to pay?`, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '💳 Telegram Payments', callback_data: `pay_telegram_${tier}` }],
+        [{ text: '📱 M-Pesa', web_app: { url: `https://your-mpesa-miniapp.com/pay?userId=${userId}&plan=${tier}&price=${price}` } }],
+      ],
+    },
+  });
+});
+
+bot.action(/pay_telegram_(starter|standard|premium)/, async (ctx) => {
+  const userId = ctx.from.id.toString();
+  const tier = ctx.match[1];
+  let price;
+
+  switch (tier) {
+    case 'starter':
+      price = 1500;
+      break;
+    case 'standard':
+      price = 3000;
+      break;
+    case 'premium':
+      price = 5500;
+      break;
+    default:
+      return ctx.reply('⚠️ Invalid subscription tier for Telegram payment.');
   }
+
+  // In a real application, you would initiate the Telegram payment here.
+  // This might involve using a Telegram Payments API and handling the payment process.
+  // For this example, we'll just simulate a successful payment.
+  await db.collection('users').doc(userId).update({
+    isSubscribed: true,
+    subscriptionTier: tier
+  });
+
+  return ctx.reply(`✅ Payment of KES ${price} for the ${tier.charAt(0).toUpperCase() + tier.slice(1)} plan received! Launch your dashboard:`, {
+    reply_markup: {
+      inline_keyboard: [[
+        { text: '🚀 Open Dashboard', web_app: { url: `https://yourapp.com/dashboard?userId=${userId}` } }
+      ]]
+    }
+  });
 });
 
 bot.command('continue', async (ctx) => {
@@ -130,7 +173,7 @@ bot.command('continue', async (ctx) => {
   const userDoc = await db.collection('users').doc(userId).get();
 
   if (userDoc.exists && userDoc.data().isSubscribed) {
-    return ctx.reply('✅ Payment received! Launch your dashboard:', {
+    return ctx.reply('✅ Subscription active! Launch your dashboard:', {
       reply_markup: {
         inline_keyboard: [[
           { text: '🚀 Open Dashboard', web_app: { url: `https://yourapp.com/dashboard?userId=${userId}` } }
@@ -138,7 +181,7 @@ bot.command('continue', async (ctx) => {
       }
     });
   } else {
-    ctx.reply('❌ We couldn’t verify your payment. Please try again or contact support.');
+    ctx.reply('❌ We couldn’t verify your subscription. Please try again or contact support.');
   }
 });
 
