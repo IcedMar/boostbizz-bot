@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { Telegraf, Markup } = require('telegraf');
-const { session } = require('telegraf');
+const { Telegraf, session } = require('telegraf');
 const db = require('./firebase');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -13,7 +13,7 @@ bot.use(session());
 // Webhook path and domain
 const PORT = process.env.PORT || 3000;
 const WEBHOOK_PATH = `/bot${process.env.BOT_TOKEN}`;
-const WEBHOOK_URL = `${process.env.WEBHOOK_DOMAIN}${WEBHOOK_PATH}`; // e.g. https://yourapp.onrender.com/botTOKEN
+const WEBHOOK_URL = `${process.env.WEBHOOK_DOMAIN}${WEBHOOK_PATH}`; 
 
 // Express middleware for webhook
 app.use(express.json());
